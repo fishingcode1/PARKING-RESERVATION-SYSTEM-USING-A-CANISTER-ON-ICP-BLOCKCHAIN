@@ -1,0 +1,77 @@
+// A Secure Parking Reservations System using a ICP canister 
+
+import Principal "mo:base/Principal";
+import Text "mo:base/Text";
+import Shared "mo:base/Shared";
+import JSON "mo:base/JSON";
+import Array "mo:base/Array";
+
+// Define a record for parking reservations
+type Reservation = {
+  user: Text;
+  date: Text;
+  time: Text;
+  spot: Text;
+};
+
+// Define user records with encrypted passwords
+type User = {
+  username: Text;
+  passwordHash: Text;
+};
+
+// Define the main actor for managing parking reservations
+actor class SecureParkingReservations() {
+  var reservations : [Reservation] = [];
+  var users : [User] = [];
+
+  // Function to register a new user
+  public shared(1) func registerUser(username: Text, password: Text) : async Text {
+    let passwordHash = hashPassword(password);
+    let user : User = { username, passwordHash };
+    users := Array.append(users, [user]);
+    return "User registration successful!";
+  }
+
+  // Function to authenticate a user
+  public query func authenticateUser(username: Text, password: Text) : async Bool {
+    let user = Array.find(users, func(u) => u.username == username);
+    switch (user) {
+      null => false,
+      some => verifyPassword(password, user.passwordHash)
+    };
+  }
+
+  // Function to add a new reservation
+  public shared(1) func reserveParking(user: Text, date: Text, time: Text, spot: Text) : async Text {
+    // Check authentication before allowing reservation
+    assert(await authenticateUser(user, password), "Authentication failed!");
+
+    let reservation : Reservation = { user, date, time, spot };
+    reservations := Array.append(reservations, [reservation]);
+    return "Reservation successful!";
+  }
+
+  // Function to get all reservations
+  public query func getAllReservations() : async [Reservation] {
+    return reservations;
+  }
+
+  // Function to get reservations for a specific date
+  public query func getReservationsByDate(date: Text) : async [Reservation] {
+    return Array.filter(reservations, func(reservation) => reservation.date == date);
+  }
+
+  // Helper function to hash passwords
+  private func hashPassword(password: Text) : Text {
+    // Use a secure hash function like Argon2
+    // This is a simplified example, and you should use a proper password hashing library
+    return Text.fromInt(password.hash());
+  }
+
+  // Helper function to verify passwords
+  private func verifyPassword(password: Text, hash: Text) : Bool {
+    // Use a secure password hashing library to verify the password
+    return Text.fromInt(password.hash()) == hash;
+  }
+};
